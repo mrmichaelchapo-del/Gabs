@@ -45,3 +45,26 @@ app.post("/api/repos", (req, res) => {
 app.listen(3000, () => {
   console.log("Server running... Creating repo...");
 });
+
+app.post("/api/create-organization", (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: "Organization name required" });
+  }
+
+  // Create organization account
+  loggedInUsers[name] = {
+    type: "organization",
+    members: ["Michael"], // first member = current user
+    created: new Date().toISOString()
+  };
+
+  // Create folder for org repos
+  fs.mkdirSync(`./repos/${name}`, { recursive: true });
+
+  res.json({
+    message: `Organization ${name} created`,
+    org: loggedInUsers[name]
+  });
+});
