@@ -126,5 +126,10 @@
       document.getElementById("result").innerText = JSON.stringify(data, null, 2);
     }
   </script>
+
+<button>Create Repo</button>
+<script>
+window.location.href = `repo.html?name=${encodeURIComponent(name)}`;
+</script>
 </body>
 </html>
