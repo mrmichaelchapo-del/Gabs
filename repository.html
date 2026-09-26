@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Loading...</title>
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: Arial;
+      padding: 20px;
+    }
+
+    .tabs {
+      margin-top: 20px;
+    }
+
+    .tabs button {
+      padding: 10px 15px;
+      margin-right: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #333;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .tabs button:hover {
+      background: #444;
+    }
+
+    .tabContent {
+      display: none;
+      background: #222;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+
+    .danger {
+      background: #c62828;
+    }
+
+    textarea, input, select {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #333;
+      color: #fff;
+    }
+
+    ul li {
+      margin: 5px 0;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1 id="repoTitle">Loading...</h1>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button onclick="openTab('codeTab')">Code 💻</button>
+    <button onclick="openTab('settingsTab')">Settings ⚙️</button>
+    <button onclick="openTab('commitsTab')">Commits 📜</button>
+    <button onclick="openTab('pagesTab')">Pages 🌐</button>
+  </div>
+
+  <!-- CODE TAB -->
+  <div id="codeTab" class="tabContent">
+    <h2>Code</h2>
+
+    <label>Create New File</label>
+    <input id="newFileName" placeholder="index.js">
+    <textarea id="newFileContent" rows="6" placeholder="console.log('Hello');"></textarea>
+    <button onclick="addFile()">Add File</button>
+
+    <h3>Files</h3>
+    <ul id="codeFileList"></ul>
+
+    <h3>Edit File</h3>
+    <select id="editFileSelect"></select>
+    <textarea id="editFileContent" rows="10"></textarea>
+    <button onclick="saveFile()">Save Changes</button>
+    <button onclick="deleteFile()" class="danger">Delete File</button>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div id="settingsTab" class="tabContent">
+    <h2>Repository Settings</h2>
+
+    <label>Rename Repository</label>
+    <input id="newName" placeholder="new-repo-name">
+    <button onclick="renameRepo()">Rename</button>
+
+    <label>Visibility</label>
+    <select id="visibility">
+      <option value="public">Public 🌍</option>
+      <option value="private">Private 🔐</option>
+    </select>
+    <button onclick="updateVisibility()">Update Visibility</button>
+
+    <button onclick="deleteRepo()" class="danger">Delete Repository</button>
+  </div>
+
+  <!-- COMMITS TAB -->
+  <div id="commitsTab" class="tabContent">
+    <h2>Commits</h2>
+    <ul id="commitList"></ul>
+  </div>
+
+  <!-- PAGES TAB -->
+  <div id="pagesTab" class="tabContent">
+    <h2>Pages Deployment</h2>
+    <button onclick="deploy()">Deploy Site</button>
+    <p id="result"></p>
+  </div>
+
+  <script>
+    // --- GET REPO NAME ---
+    const params = new URLSearchParams(window.location.search);
+    const repoName = params.get("name");
+
+    document.title = repoName;
+    document.getElementById("repoTitle").innerText = repoName;
+
+    // --- TAB SYSTEM ---
+    function openTab(tabId) {
+      document.querySelectorAll(".tabContent").forEach(tab => tab.style.display = "none");
+      document.getElementById(tabId).style.display = "block";
+    }
+
+    // --- RENAME REPO ---
+    async function renameRepo() {
+      const newName = document.getElementById("newName").value;
+
+      await fetch("/api/rename-repo", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ oldName: repoName, newName })
+      });
+
+      window.location.href = `repo.html?name=${newName}`;
+    }
+
+    // --- UPDATE VISIBILITY ---
+    async function updateVisibility() {
+      const visibility = document.getElementById("visibility").value;
+
+      await fetch("/api/update-visibility", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ repo: repoName, visibility })
+      });
+    }
+
+    // --- DELETE REPO ---
+    async function deleteRepo() {
+      await fetch("/api/delete-repo", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ repo: repoName })
+      });
+
+      window.location.href = "dashboard.html";
+    }
+
+    // --- LOAD FILES ---
+    async function loadCodeFiles() {
+      const res = await fetch(`/api/files?repo=${repoName}`);
+      const files = await res.json();
+
+      document.getElementById("codeFileList").innerHTML =
+        files.map(f => `<li onclick="openFile('${f}')">${f}</li>`).join("");
+
+      document.getElementById("editFileSelect").innerHTML =
+        files.map(f => `<option value="${f}">${f}</option>`).join("");
+    }
+
+    // --- OPEN FILE ---
+    async function openFile(filename) {
+      const res = await fetch(`/api/file?repo=${repoName}&file=${filename}`);
+      const text = await res.text();
+
+      document.getElementById("editFileSelect").value = filename;
+      document.getElementById("editFileContent").value = text;
+    }
+
+    // --- ADD FILE ---
+    async function addFile() {
+      const filename = document.getElementById("newFileName").value;
+      const content = document.getElementById("newFileContent").value;
+
+      await fetch("/api/add-file", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ repo: repoName, filename, content })
+      });
+
+      loadCodeFiles();
+    }
+
+    // --- SAVE FILE ---
+    async function saveFile() {
+      const filename = document.getElementById("editFileSelect").value;
+      const content = document.getElementById("editFileContent").value;
+
+      await fetch("/api/save-file", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ repo: repoName, filename, content })
+      });
+
+      loadCodeFiles();
+    }
+
+    // --- DELETE FILE ---
+    async function deleteFile() {
+      const filename = document.getElementById("editFileSelect").value;
+
+      await fetch("/api/delete-file", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ repo: repoName, filename })
+      });
+
+      loadCodeFiles();
+    }
+
+    // --- LOAD COMMITS ---
+    async function loadCommits() {
+      const res = await fetch(`/api/commits?repo=${repoName}`);
+      const commits = await res.json();
+
+      document.getElementById("commitList").innerHTML =
+        commits.map(c => `<li>${c.hash} — ${c.message}</li>`).join("");
+    }
+
+    // --- DEPLOY PAGES ---
+    async function deploy() {
+      const res = await fetch("/api/deploy-pages", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ repo: repoName })
+      });
+
+      document.getElementById("result").innerText =
+        `Site deployed at https://${repoName}.gabs.page`;
+    }
+
+    // --- INITIAL LOAD ---
+    loadCodeFiles();
+    loadCommits();
+  </script>
+
+</body>
+</html>
